@@ -239,4 +239,10 @@ h2 {
   background-color: transparent;
 }
 
+@media screen and (max-width: 745px) {
+    .message .own{
+        min-width: 35%;
+    }
+}
+
 </style>
