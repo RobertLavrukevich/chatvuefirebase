@@ -30,7 +30,78 @@
     </template>
   
 <script>
+  import { auth, db } from '../firebase';
+  import {
+    collection, addDoc, onSnapshot, deleteDoc, updateDoc, doc, serverTimestamp, query, orderBy
+  } from 'firebase/firestore';
   
+  export default {
+    data() {
+      return {
+        messages: [],
+        newMsg: '',
+        editId: null,
+        editText: '',
+        currentUser: auth.currentUser?.email?.split('@')[0] || ''
+      };
+    },
+    methods: {
+      
+      formatTime(ts) {
+      const date = ts?.seconds ? new Date(ts.seconds * 1000) : null;
+      return date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      },
+      formatDate(ts) {
+      const date = ts?.seconds ? new Date(ts.seconds * 1000) : null;
+      return date ? date.toLocaleDateString() : '';
+      },
+      groupByDate(messages) {
+      const grouped = {};
+      for (const msg of messages) {
+      const date = this.formatDate(msg.createdAt);
+      if (!grouped[date]) grouped[date] = [];
+      grouped[date].push(msg);
+     }
+    return grouped;
+      },
+      async sendMessage() {
+        if (!this.newMsg) return;
+        await addDoc(collection(db, 'messages'), {
+          user: this.currentUser,
+          content: this.newMsg,
+          createdAt: serverTimestamp()
+        });
+        this.newMsg = '';
+      },
+      startEdit(msg) {
+        this.editId = msg.id;
+        this.editText = msg.content;
+      },
+      async saveEdit(id) {
+        if (!this.editText) return;
+        const docRef = doc(db, 'messages', id);
+        await updateDoc(docRef, { content: this.editText });
+        this.editId = null;
+        this.editText = '';
+      },
+      async deleteMessage(id) {
+        const docRef = doc(db, 'messages', id);
+        await deleteDoc(docRef);
+      }
+    },
+    created() {
+         const q = query(collection(db, 'messages'), orderBy('createdAt'));
+         onSnapshot(q, (snap) => {
+         this.messages = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+         });
+         this.currentUser = auth.currentUser?.email?.split('@')[0];
+    },
+    computed: {
+        groupedMessages() {
+        return this.groupByDate(this.messages);
+        }
+    }
+};
 </script>
   
 <style>
